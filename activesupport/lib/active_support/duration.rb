@@ -118,6 +118,16 @@ module ActiveSupport
 
     attr_accessor :value, :parts
 
+    def to_seconds
+      parts.reduce(0) do |acc, (l, r)|
+        acc += PARTS_IN_SECONDS[l] * r
+      end
+    end
+
+    def value
+      to_seconds
+    end
+
     autoload :ISO8601Parser,     "active_support/duration/iso8601_parser"
     autoload :ISO8601Serializer, "active_support/duration/iso8601_serializer"
 
@@ -241,6 +251,16 @@ module ActiveSupport
       end
     end
 
+    def %(other)
+      if Scalar === other || Duration === other
+        Duration.new(value % other.value, parts.map { |type, number| [type, number % other.value] })
+      elsif Numeric === other
+        Duration.new(value % other, parts.map { |type, number| [type, number % other] })
+      else
+        raise_type_error(other)
+      end
+    end
+
     def -@ #:nodoc:
       Duration.new(-value, parts.map { |type, number| [type, -number] })
     end
@@ -322,12 +342,33 @@ module ActiveSupport
     alias :until :ago
     alias :before :ago
 
+    def to_parts
+      units = [
+        [SECONDS_PER_YEAR, :years], [SECONDS_PER_MONTH, :months],
+        [SECONDS_PER_DAY, :days], [SECONDS_PER_HOUR, :hours],
+        [SECONDS_PER_MINUTE, :minutes], [1, :seconds]
+      ]
+
+      new_part_array = []
+      units.reduce(@value) do |acc, (l, r)|
+        unit_result = acc / l
+
+        if unit_result > 0
+          new_part_array << [r, unit_result]
+          acc %= l
+        else
+          acc
+        end
+      end
+      new_part_array
+    end
+
     def inspect #:nodoc:
-      parts.
+      to_parts.
         reduce(::Hash.new(0)) { |h, (l, r)| h[l] += r; h }.
         sort_by { |unit,  _ | [:years, :months, :weeks, :days, :hours, :minutes, :seconds].index(unit) }.
         map     { |unit, val| "#{val} #{val == 1 ? unit.to_s.chop : unit.to_s}" }.
-        to_sentence(locale: ::I18n.default_locale)
+      to_sentence(locale: ::I18n.default_locale)
     end
 
     def as_json(options = nil) #:nodoc:
