@@ -38,11 +38,11 @@ module ActiveSupport
 
       def +(other)
         if Duration === other
-          seconds   = value + other.parts[:seconds]
-          new_parts = other.parts.merge(seconds: seconds)
+          #seconds   = value + other.parts[:seconds]
+          #new_parts = other.parts.merge(seconds: seconds)
           new_value = value + other.value
 
-          Duration.new(new_value, new_parts)
+          Duration.new(new_value)
         else
           calculate(:+, other)
         end
@@ -50,12 +50,12 @@ module ActiveSupport
 
       def -(other)
         if Duration === other
-          seconds   = value - other.parts[:seconds]
-          new_parts = other.parts.map { |part, other_value| [part, -other_value] }.to_h
-          new_parts = new_parts.merge(seconds: seconds)
+          #seconds   = value - other.parts[:seconds]
+          #new_parts = other.parts.map { |part, other_value| [part, -other_value] }.to_h
+          #new_parts = new_parts.merge(seconds: seconds)
           new_value = value - other.value
 
-          Duration.new(new_value, new_parts)
+          Duration.new(new_value)
         else
           calculate(:-, other)
         end
@@ -63,10 +63,10 @@ module ActiveSupport
 
       def *(other)
         if Duration === other
-          new_parts = other.parts.map { |part, other_value| [part, value * other_value] }.to_h
+          #new_parts = other.parts.map { |part, other_value| [part, value * other_value] }.to_h
           new_value = value * other.value
 
-          Duration.new(new_value, new_parts)
+          Duration.new(new_value)
         else
           calculate(:*, other)
         end
@@ -74,10 +74,10 @@ module ActiveSupport
 
       def /(other)
         if Duration === other
-          new_parts = other.parts.map { |part, other_value| [part, value / other_value] }.to_h
+          #new_parts = other.parts.map { |part, other_value| [part, value / other_value] }.to_h
           new_value = new_parts.inject(0) { |total, (part, value)| total + value * Duration::PARTS_IN_SECONDS[part] }
 
-          Duration.new(new_value, new_parts)
+          Duration.new(new_value)
         else
           calculate(:/, other)
         end
@@ -116,17 +116,7 @@ module ActiveSupport
       years:   SECONDS_PER_YEAR
     }.freeze
 
-    attr_accessor :value, :parts
-
-    def to_seconds
-      parts.reduce(0) do |acc, (l, r)|
-        acc += PARTS_IN_SECONDS[l] * r
-      end
-    end
-
-    def value
-      to_seconds
-    end
+    attr_accessor :value
 
     autoload :ISO8601Parser,     "active_support/duration/iso8601_parser"
     autoload :ISO8601Serializer, "active_support/duration/iso8601_serializer"
@@ -153,27 +143,27 @@ module ActiveSupport
       end
 
       def minutes(value) #:nodoc:
-        new(value * SECONDS_PER_MINUTE, [[:minutes, value]])
+        new(value * SECONDS_PER_MINUTE)
       end
 
       def hours(value) #:nodoc:
-        new(value * SECONDS_PER_HOUR, [[:hours, value]])
+        new(value * SECONDS_PER_HOUR)
       end
 
       def days(value) #:nodoc:
-        new(value * SECONDS_PER_DAY, [[:days, value]])
+        new(value * SECONDS_PER_DAY)
       end
 
       def weeks(value) #:nodoc:
-        new(value * SECONDS_PER_WEEK, [[:weeks, value]])
+        new(value * SECONDS_PER_WEEK)
       end
 
       def months(value) #:nodoc:
-        new(value * SECONDS_PER_MONTH, [[:months, value]])
+        new(value * SECONDS_PER_MONTH)
       end
 
       def years(value) #:nodoc:
-        new(value * SECONDS_PER_YEAR, [[:years, value]])
+        new(value * SECONDS_PER_YEAR)
       end
 
       private
@@ -185,9 +175,10 @@ module ActiveSupport
         end
     end
 
-    def initialize(value, parts) #:nodoc:
-      @value, @parts = value, parts.to_h
-      @parts.default = 0
+    def initialize(value) #:nodoc:
+      @value = value
+      #@parts = parts.to_h
+      parts.default = 0
     end
 
     def coerce(other) #:nodoc:
@@ -216,10 +207,10 @@ module ActiveSupport
         other.parts.each do |(key, value)|
           parts[key] += value
         end
-        Duration.new(value + other.value, parts)
+        Duration.new(value + other.value)
       else
-        seconds = @parts[:seconds] + other
-        Duration.new(value + other, @parts.merge(seconds: seconds))
+        #seconds = @parts[:seconds] + other
+        Duration.new(value + other)
       end
     end
 
@@ -232,9 +223,9 @@ module ActiveSupport
     # Multiplies this Duration by a Numeric and returns a new Duration.
     def *(other)
       if Scalar === other || Duration === other
-        Duration.new(value * other.value, parts.map { |type, number| [type, number * other.value] })
+        Duration.new(value * other.value)
       elsif Numeric === other
-        Duration.new(value * other, parts.map { |type, number| [type, number * other] })
+        Duration.new(value * other)
       else
         raise_type_error(other)
       end
@@ -243,9 +234,9 @@ module ActiveSupport
     # Divides this Duration by a Numeric and returns a new Duration.
     def /(other)
       if Scalar === other || Duration === other
-        Duration.new(value / other.value, parts.map { |type, number| [type, number / other.value] })
+        Duration.new(value / other.value)
       elsif Numeric === other
-        Duration.new(value / other, parts.map { |type, number| [type, number / other] })
+        Duration.new(value / other)
       else
         raise_type_error(other)
       end
@@ -253,9 +244,9 @@ module ActiveSupport
 
     def %(other)
       if Scalar === other || Duration === other
-        Duration.new(value % other.value, parts.map { |type, number| [type, number % other.value] })
+        Duration.new(value % other.value)
       elsif Numeric === other
-        Duration.new(value % other, parts.map { |type, number| [type, number % other] })
+        Duration.new(value % other)
       else
         raise_type_error(other)
       end
@@ -342,29 +333,12 @@ module ActiveSupport
     alias :until :ago
     alias :before :ago
 
-    def to_parts
-      units = [
-        [SECONDS_PER_YEAR, :years], [SECONDS_PER_MONTH, :months],
-        [SECONDS_PER_DAY, :days], [SECONDS_PER_HOUR, :hours],
-        [SECONDS_PER_MINUTE, :minutes], [1, :seconds]
-      ]
-
-      new_part_array = []
-      units.reduce(@value) do |acc, (l, r)|
-        unit_result = acc / l
-
-        if unit_result > 0
-          new_part_array << [r, unit_result]
-          acc %= l
-        else
-          acc
-        end
-      end
-      new_part_array
+    def parts
+      @parts || to_parts
     end
 
     def inspect #:nodoc:
-      to_parts.
+      parts.
         reduce(::Hash.new(0)) { |h, (l, r)| h[l] += r; h }.
         sort_by { |unit,  _ | [:years, :months, :weeks, :days, :hours, :minutes, :seconds].index(unit) }.
         map     { |unit, val| "#{val} #{val == 1 ? unit.to_s.chop : unit.to_s}" }.
@@ -382,6 +356,29 @@ module ActiveSupport
     end
 
     private
+      # Convert the value into time units.
+      # For example 61 seconds would be 1 minute and 1 second
+      def to_parts
+        time_units = [
+          [SECONDS_PER_YEAR, :years], [SECONDS_PER_MONTH, :months],
+          [SECONDS_PER_DAY, :days], [SECONDS_PER_HOUR, :hours],
+          [SECONDS_PER_MINUTE, :minutes], [1, :seconds]
+        ]
+
+        @parts = []
+        time_units.reduce(@value) do |acc, (l, r)|
+          unit_result = acc / l
+
+          if unit_result > 0
+            @parts << [r, unit_result]
+            acc %= l
+          else
+            acc
+          end
+        end
+
+        @parts = @parts.to_h
+      end
 
       def sum(sign, time = ::Time.current)
         parts.inject(time) do |t, (type, number)|
