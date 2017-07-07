@@ -38,8 +38,6 @@ module ActiveSupport
 
       def +(other)
         if Duration === other
-          #seconds   = value + other.parts[:seconds]
-          #new_parts = other.parts.merge(seconds: seconds)
           new_value = value + other.value
 
           Duration.new(new_value)
@@ -74,10 +72,7 @@ module ActiveSupport
 
       def /(other)
         if Duration === other
-          #new_parts = other.parts.map { |part, other_value| [part, value / other_value] }.to_h
-          new_value = new_parts.inject(0) { |total, (part, value)| total + value * Duration::PARTS_IN_SECONDS[part] }
-
-          Duration.new(new_value)
+          Duration.new(value / other.value)
         else
           calculate(:/, other)
         end
@@ -129,7 +124,7 @@ module ActiveSupport
       # If invalid string is provided, it will raise +ActiveSupport::Duration::ISO8601Parser::ParsingError+.
       def parse(iso8601duration)
         parts = ISO8601Parser.new(iso8601duration).parse!
-        new(calculate_total_seconds(parts), parts)
+        new(calculate_total_seconds(parts))
       end
 
       def ===(other) #:nodoc:
@@ -139,7 +134,7 @@ module ActiveSupport
       end
 
       def seconds(value) #:nodoc:
-        new(value, [[:seconds, value]])
+        new(value)
       end
 
       def minutes(value) #:nodoc:
@@ -203,15 +198,10 @@ module ActiveSupport
     # are treated as seconds.
     def +(other)
       if Duration === other
-        parts = @parts.dup
-        other.parts.each do |(key, value)|
-          parts[key] += value
-        end
-        Duration.new(value + other.value)
-      else
-        #seconds = @parts[:seconds] + other
-        Duration.new(value + other)
+        return Duration.new(value + other.value)
       end
+
+      Duration.new(value + other)
     end
 
     # Subtracts another Duration or a Numeric from this Duration. Numeric
@@ -253,7 +243,7 @@ module ActiveSupport
     end
 
     def -@ #:nodoc:
-      Duration.new(-value, parts.map { |type, number| [type, -number] })
+      Duration.new(-value)
     end
 
     def is_a?(klass) #:nodoc:
@@ -334,7 +324,7 @@ module ActiveSupport
     alias :before :ago
 
     def parts
-      @parts || to_parts
+      @parts ||= to_parts
     end
 
     def inspect #:nodoc:
