@@ -28,7 +28,7 @@ module ActiveSupport
 
       def <=>(other)
         if Scalar === other || Duration === other
-          value <=> other.value
+          value <=> other.value * other.sign
         elsif Numeric === other
           value <=> other
         else
@@ -38,7 +38,7 @@ module ActiveSupport
 
       def +(other)
         if Duration === other
-          new_value = value + other.value
+          new_value = (value + other.value) * other.sign
 
           Duration.new(new_value)
         else
@@ -48,10 +48,7 @@ module ActiveSupport
 
       def -(other)
         if Duration === other
-          #seconds   = value - other.parts[:seconds]
-          #new_parts = other.parts.map { |part, other_value| [part, -other_value] }.to_h
-          #new_parts = new_parts.merge(seconds: seconds)
-          new_value = value - other.value
+          new_value = (value - other.value * other.sign)
 
           Duration.new(new_value)
         else
@@ -62,7 +59,7 @@ module ActiveSupport
       def *(other)
         if Duration === other
           #new_parts = other.parts.map { |part, other_value| [part, value * other_value] }.to_h
-          new_value = value * other.value
+          new_value = value * other.value * other.sign
 
           Duration.new(new_value)
         else
@@ -72,7 +69,7 @@ module ActiveSupport
 
       def /(other)
         if Duration === other
-          Duration.new(value / other.value)
+          Duration.new((value / other.value) * other.sign)
         else
           calculate(:/, other)
         end
@@ -111,7 +108,7 @@ module ActiveSupport
       years:   SECONDS_PER_YEAR
     }.freeze
 
-    attr_accessor :value
+    attr_accessor :value, :sign
 
     autoload :ISO8601Parser,     "active_support/duration/iso8601_parser"
     autoload :ISO8601Serializer, "active_support/duration/iso8601_serializer"
@@ -171,7 +168,9 @@ module ActiveSupport
     end
 
     def initialize(value) #:nodoc:
-      @value = value
+      puts "something", value
+      @value = value.abs
+      @sign  = value / @value
       #@parts = parts.to_h
       parts.default = 0
     end
@@ -360,13 +359,19 @@ module ActiveSupport
           unit_result = acc / l
 
           if unit_result > 0
+            puts "<<<", @parts.size, @sign, value
+            if @parts.size == 0
+              puts "----", unit_result, @sign, r
+              unit_result = unit_result * @sign
+            end
+
             @parts << [r, unit_result]
+
             acc %= l
           else
             acc
           end
         end
-
         @parts = @parts.to_h
       end
 
