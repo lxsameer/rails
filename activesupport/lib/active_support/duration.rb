@@ -48,7 +48,7 @@ module ActiveSupport
 
       def -(other)
         if Duration === other
-          new_value = (value - other.value * other.sign)
+          new_value = (value + other.value.abs) * other.sign
 
           Duration.new(new_value)
         else
@@ -59,7 +59,7 @@ module ActiveSupport
       def *(other)
         if Duration === other
           #new_parts = other.parts.map { |part, other_value| [part, value * other_value] }.to_h
-          new_value = value * other.value * other.sign
+          new_value = value * other.value
 
           Duration.new(new_value)
         else
@@ -168,9 +168,9 @@ module ActiveSupport
     end
 
     def initialize(value) #:nodoc:
-      puts "something", value
       @value = value.abs
-      @sign  = value / @value
+      @sign  = value != 0 ? (value / @value) : 1
+
       #@parts = parts.to_h
       parts.default = 0
     end
@@ -181,6 +181,10 @@ module ActiveSupport
       else
         [Scalar.new(other), self]
       end
+    end
+
+    def value
+      @value * @sign
     end
 
     # Compares one Duration with another or a Numeric to this Duration.
@@ -269,7 +273,7 @@ module ActiveSupport
     #
     #   1.day.to_s # => "86400"
     def to_s
-      @value.to_s
+      value.to_s
     end
 
     # Returns the number of seconds that this Duration represents.
@@ -293,7 +297,7 @@ module ActiveSupport
     # Time[http://ruby-doc.org/stdlib/libdoc/time/rdoc/Time.html] should be used for precision
     # date and time arithmetic.
     def to_i
-      @value.to_i
+      value.to_i
     end
 
     # Returns +true+ if +other+ is also a Duration instance, which has the
@@ -303,7 +307,7 @@ module ActiveSupport
     end
 
     def hash
-      @value.hash
+      value.hash
     end
 
     # Calculates a new Time or Date that is as far in the future
@@ -348,31 +352,32 @@ module ActiveSupport
       # Convert the value into time units.
       # For example 61 seconds would be 1 minute and 1 second
       def to_parts
+        return @parts = [[:seconds, 0]].to_h if @value == 0
+
         time_units = [
           [SECONDS_PER_YEAR, :years], [SECONDS_PER_MONTH, :months],
           [SECONDS_PER_DAY, :days], [SECONDS_PER_HOUR, :hours],
           [SECONDS_PER_MINUTE, :minutes], [1, :seconds]
         ]
 
-        @parts = []
+        parts = []
         time_units.reduce(@value) do |acc, (l, r)|
           unit_result = acc / l
 
           if unit_result > 0
-            puts "<<<", @parts.size, @sign, value
-            if @parts.size == 0
-              puts "----", unit_result, @sign, r
+            if parts.size == 0
+              puts "here"
               unit_result = unit_result * @sign
             end
 
-            @parts << [r, unit_result]
+            parts << [r, unit_result]
 
             acc %= l
           else
             acc
           end
         end
-        @parts = @parts.to_h
+        @parts = parts.to_h
       end
 
       def sum(sign, time = ::Time.current)
